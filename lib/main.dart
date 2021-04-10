@@ -12,6 +12,8 @@ Color shadowBlue = const Color(0xFF778DA9);
 Color platinum = const Color(0xFFE0E1DD);
 Color tomato = const Color(0xFFFF6347);
 List<CardData> bookmarks = [];
+final myController = TextEditingController();
+var _controller = ScrollController();
 
 void main() {
   runApp(MyApp());
@@ -42,12 +44,12 @@ class _MyHomePageState extends State<MyHomePage> {
   // Random colors picked up from the web
 
   List<CardData> _repos = [];
-  Future<List<CardData>> _getRepos() async {
+  Future<List<CardData>> _getRepos(q) async {
     log('Async');
     List<CardData> cardRepos = [];
     try {
       final url =
-          'https://api.github.com/search/repositories?q={q}&sort=stars&order=desc&per_page=10';
+          'https://api.github.com/search/repositories?q={$q}&sort=stars&order=desc&per_page=10';
 
       var response = await http.get(url);
 
@@ -65,12 +67,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    _getRepos().then((value) {
+    _getRepos("q").then((value) {
       setState(() {
         _repos.addAll(value);
       });
     });
     super.initState();
+
+    _controller.addListener(() {
+      if (_controller.position.atEdge) {
+        if (_controller.position.pixels == 0) {
+          // You're at the top.
+          log("top");
+        } else {
+          // You're at the bottom.
+          log("bottom");
+        }
+      }
+    });
   }
 
   void _openURL(url) async {
@@ -97,16 +111,43 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         body: Container(
             child: Column(children: [
-          TextField(
-            decoration: InputDecoration(
-                fillColor: platinum,
-                border: OutlineInputBorder(),
-                hintText: 'Enter a search term'),
-          ),
+          Row(children: [
+            Expanded(
+                child: SizedBox(
+              height: 70.0,
+              child: new TextField(
+                controller: myController,
+                style: TextStyle(color: platinum),
+                decoration: InputDecoration(
+                    focusedBorder: OutlineInputBorder(
+                      borderSide:
+                          const BorderSide(color: Colors.amber, width: 1.0),
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                    hintStyle: TextStyle(
+                        fontSize: 20.0,
+                        fontWeight: FontWeight.w300,
+                        color: platinum),
+                    border: OutlineInputBorder(),
+                    hintText: 'Enter a search term'),
+              ),
+            )),
+            new IconButton(
+              color: platinum,
+              icon: Icon(Icons.search_outlined),
+              onPressed: () => _getRepos(myController.text).then((value) {
+                setState(() {
+                  _repos.clear();
+                  _repos.addAll(value);
+                });
+              }),
+            ),
+          ]),
           Expanded(
               child: SizedBox(
                   height: 200.0,
-                  child: new ListView.builder(
+                  child: ListView.builder(
+                    controller: _controller,
                     itemBuilder: (context, index) {
                       final item = _repos[index];
                       String snack = "";
@@ -136,6 +177,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             onTap: () => _openURL(_repos[index].html_url),
                             child: Container(
                               padding: const EdgeInsets.all(15),
+                              width: double.infinity,
                               decoration: BoxDecoration(
                                 color: oxford,
                                 border: Border(

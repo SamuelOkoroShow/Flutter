@@ -14,6 +14,7 @@ Color tomato = const Color(0xFFFF6347);
 List<CardData> bookmarks = [];
 final myController = TextEditingController();
 var _controller = ScrollController();
+int page = 1;
 
 void main() {
   runApp(MyApp());
@@ -49,10 +50,11 @@ class _MyHomePageState extends State<MyHomePage> {
     List<CardData> cardRepos = [];
     try {
       final url =
-          'https://api.github.com/search/repositories?q={$q}&sort=stars&order=desc&per_page=10';
+          'https://api.github.com/search/repositories?q={$q}&sort=stars&order=desc&per_page=10&page=$page';
 
       var response = await http.get(url);
-
+      log('loading entries');
+      log(url);
       var jsonRepos = jsonDecode(response.body)["items"];
       //log(jsonRepos.toString());
       for (var jsonRepo in jsonRepos) {
@@ -82,6 +84,16 @@ class _MyHomePageState extends State<MyHomePage> {
         } else {
           // You're at the bottom.
           log("bottom");
+          page++;
+          String q = myController.text;
+          if (myController.text == "") {
+            q = "q";
+          }
+          _getRepos(q).then((value) {
+            setState(() {
+              _repos.addAll(value);
+            });
+          });
         }
       }
     });
@@ -104,107 +116,111 @@ class _MyHomePageState extends State<MyHomePage> {
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     return Scaffold(
-        appBar: AppBar(
-          // Here we take the value from the MyHomePage object that was created by
-          // the App.build method, and use it to set our appbar title.
-          title: Text(widget.title),
-        ),
         body: Container(
+            margin: const EdgeInsets.only(top: 30.0),
             child: Column(children: [
-          Row(children: [
-            Expanded(
-                child: SizedBox(
-              height: 70.0,
-              child: new TextField(
-                controller: myController,
-                style: TextStyle(color: platinum),
-                decoration: InputDecoration(
-                    focusedBorder: OutlineInputBorder(
-                      borderSide:
-                          const BorderSide(color: Colors.amber, width: 1.0),
-                      borderRadius: BorderRadius.circular(5.0),
-                    ),
-                    hintStyle: TextStyle(
-                        fontSize: 20.0,
-                        fontWeight: FontWeight.w300,
-                        color: platinum),
-                    border: OutlineInputBorder(),
-                    hintText: 'Enter a search term'),
-              ),
-            )),
-            new IconButton(
-              color: platinum,
-              icon: Icon(Icons.search_outlined),
-              onPressed: () => _getRepos(myController.text).then((value) {
-                setState(() {
-                  _repos.clear();
-                  _repos.addAll(value);
-                });
-              }),
-            ),
-          ]),
-          Expanded(
-              child: SizedBox(
-                  height: 200.0,
-                  child: ListView.builder(
-                    controller: _controller,
-                    itemBuilder: (context, index) {
-                      final item = _repos[index];
-                      String snack = "";
-                      return Dismissible(
-                          key: Key(item.id.toString()),
-                          onDismissed: (direction) {
-                            log(direction.toString());
-                            if (direction == DismissDirection.startToEnd) {
-                              bookmarks.add(_repos[index]);
-                              snack = "Added ${item.name} to Bookmarks";
-                            }
-                            if (direction == DismissDirection.endToStart) {
-                              snack = "${item.name} dismissed";
-                            }
-                            setState(() {
-                              _repos.removeAt(index);
-                            });
+              Row(children: [
+                Expanded(
+                    child: SizedBox(
+                  height: 70.0,
+                  child: new TextField(
+                    controller: myController,
+                    style: TextStyle(color: platinum),
+                    decoration: InputDecoration(
+                        focusedBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.amber, width: 1.0),
+                          borderRadius: BorderRadius.circular(5.0),
+                        ),
+                        hintStyle: TextStyle(
+                            fontSize: 20.0,
+                            fontWeight: FontWeight.w300,
+                            color: platinum),
+                        border: OutlineInputBorder(),
+                        hintText: 'Enter a search term'),
+                  ),
+                )),
+                new IconButton(
+                  color: platinum,
+                  icon: Icon(Icons.search_outlined),
+                  onPressed: () {
+                    //log('newPress');
+                    page = 1;
+                    _getRepos(myController.text).then((value) {
+                      setState(() {
+                        _repos.clear();
+                        _repos.addAll(value);
+                      });
+                    });
+                  },
+                ),
+              ]),
+              Expanded(
+                  child: SizedBox(
+                      height: 200.0,
+                      child: ListView.builder(
+                        controller: _controller,
+                        itemBuilder: (context, index) {
+                          final item = _repos[index];
+                          String snack = "";
+                          return Dismissible(
+                              key: Key(item.id.toString()),
+                              onDismissed: (direction) {
+                                log(direction.toString());
+                                if (direction == DismissDirection.startToEnd) {
+                                  bookmarks.add(_repos[index]);
+                                  snack = "Added ${item.name} to Bookmarks";
+                                }
+                                if (direction == DismissDirection.endToStart) {
+                                  snack = "${item.name} dismissed";
+                                }
+                                setState(() {
+                                  _repos.removeAt(index);
+                                });
 
-                            // Then show a snackbar.
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text(snack)));
-                          },
-                          // Show a red background as the item is swiped away.
-                          background: Container(color: Colors.red),
-                          child: Card(
-                              child: InkWell(
-                            onTap: () => _openURL(_repos[index].html_url),
-                            child: Container(
-                              padding: const EdgeInsets.all(15),
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: oxford,
-                                border: Border(
-                                  bottom: BorderSide(width: 1.0, color: forgra),
+                                // Then show a snackbar.
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(snack)));
+                              },
+                              // Show a red background as the item is swiped away.
+                              background: Container(color: Colors.red),
+                              child: Card(
+                                  child: InkWell(
+                                onTap: () => _openURL(_repos[index].html_url),
+                                child: Container(
+                                  padding: const EdgeInsets.all(15),
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: oxford,
+                                    border: Border(
+                                      bottom:
+                                          BorderSide(width: 1.0, color: forgra),
+                                    ),
+                                  ),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(_repos[index].name,
+                                            style: TextStyle(
+                                                fontSize: 25,
+                                                color: platinum,
+                                                fontWeight: FontWeight.w100)),
+                                        Text(
+                                            'Repo Stars: ' +
+                                                _repos[index]
+                                                    .stargazers
+                                                    .toString(),
+                                            style: TextStyle(
+                                                fontSize: 15,
+                                                color: platinum,
+                                                fontWeight: FontWeight.w300))
+                                      ]),
                                 ),
-                              ),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(_repos[index].name,
-                                        style: TextStyle(
-                                            fontSize: 25,
-                                            color: platinum,
-                                            fontWeight: FontWeight.w100)),
-                                    Text(
-                                        'Repo Stars: ' +
-                                            _repos[index].stargazers.toString(),
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color: platinum,
-                                            fontWeight: FontWeight.w300))
-                                  ]),
-                            ),
-                          )));
-                    },
-                    itemCount: _repos.length,
-                  )))
-        ])));
+                              )));
+                        },
+                        itemCount: _repos.length,
+                      )))
+            ])));
   }
 }
